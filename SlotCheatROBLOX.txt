@@ -1,0 +1,1368 @@
+
+--==================================================
+-- CHEATSLOT V5.0
+-- Roblox Studio / LocalScript
+-- Authors: Faze4ik - ZENQ - Almazik
+--==================================================
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LP = Players.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
+
+--==================================================
+-- CONFIG
+--==================================================
+
+local C = {
+	MenuKey = Enum.KeyCode.F8,
+	Theme = "Purple",
+
+	ESP = false,
+	Names = true,
+	Health = true,
+	Distance = true,
+
+	AimEnabled = false,
+	AimKey = Enum.UserInputType.MouseButton2,
+	AimSmooth = 8,
+	AimFOV = 150,
+	IgnoreFriends = true,
+
+	Crosshair = true,
+	CrosshairStyle = "Classic",
+	CrosshairColor = Color3.fromRGB(190, 100, 255),
+	CrosshairSize = 12,
+	CrosshairThickness = 3,
+	CrosshairGap = 5,
+	CrosshairDot = true,
+	CrosshairOutline = true,
+	CrosshairTransparency = 0,
+
+	ShowFOV = false,
+
+	Fly = false,
+	FlySpeed = 55,
+	NoClip = false,
+}
+
+local Themes = {
+	Purple = {
+		BG = Color3.fromRGB(16, 13, 26),
+		Panel = Color3.fromRGB(26, 21, 40),
+		Element = Color3.fromRGB(38, 30, 57),
+		Accent = Color3.fromRGB(174, 94, 255),
+		Text = Color3.fromRGB(245, 240, 255),
+		Muted = Color3.fromRGB(155, 145, 175),
+	},
+
+	Dark = {
+		BG = Color3.fromRGB(13, 13, 17),
+		Panel = Color3.fromRGB(23, 23, 29),
+		Element = Color3.fromRGB(37, 37, 45),
+		Accent = Color3.fromRGB(170, 170, 190),
+		Text = Color3.fromRGB(245, 245, 250),
+		Muted = Color3.fromRGB(155, 155, 165),
+	},
+
+	Red = {
+		BG = Color3.fromRGB(25, 12, 17),
+		Panel = Color3.fromRGB(43, 19, 26),
+		Element = Color3.fromRGB(59, 28, 37),
+		Accent = Color3.fromRGB(255, 65, 90),
+		Text = Color3.fromRGB(255, 240, 240),
+		Muted = Color3.fromRGB(185, 145, 150),
+	},
+
+	Green = {
+		BG = Color3.fromRGB(13, 24, 18),
+		Panel = Color3.fromRGB(21, 38, 28),
+		Element = Color3.fromRGB(30, 54, 39),
+		Accent = Color3.fromRGB(75, 220, 130),
+		Text = Color3.fromRGB(240, 255, 245),
+		Muted = Color3.fromRGB(145, 180, 155),
+	},
+
+	Light = {
+		BG = Color3.fromRGB(235, 231, 245),
+		Panel = Color3.fromRGB(250, 247, 255),
+		Element = Color3.fromRGB(225, 218, 240),
+		Accent = Color3.fromRGB(135, 65, 220),
+		Text = Color3.fromRGB(35, 25, 50),
+		Muted = Color3.fromRGB(110, 100, 125),
+	},
+}
+
+local T = Themes[C.Theme]
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function new(class, props, parent)
+	local obj = Instance.new(class)
+
+	for k, v in pairs(props or {}) do
+		obj[k] = v
+	end
+
+	obj.Parent = parent
+	return obj
+end
+
+local function corner(obj, radius)
+	new("UICorner", {
+		CornerRadius = UDim.new(0, radius or 10)
+	}, obj)
+end
+
+local function outline(obj, color, transparency)
+	return new("UIStroke", {
+		Color = color or T.Accent,
+		Transparency = transparency or 0,
+		Thickness = 1,
+	}, obj)
+end
+
+local function animate(obj, duration, props)
+	local tw = TweenService:Create(
+		obj,
+		TweenInfo.new(duration, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		props
+	)
+	tw:Play()
+	return tw
+end
+
+local function label(parent, text, size, position, color)
+	return new("TextLabel", {
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = color or T.Text,
+		TextSize = 13,
+		Font = Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Size = size,
+		Position = position,
+	}, parent)
+end
+
+--==================================================
+-- GUI ROOT
+--==================================================
+
+local old = PG:FindFirstChild("CheatSLOT")
+if old then old:Destroy() end
+
+local GUI = new("ScreenGui", {
+	Name = "CheatSLOT",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 100,
+}, PG)
+
+--==================================================
+-- FLOATING CS BUTTON
+--==================================================
+
+local CSButton = new("TextButton", {
+	Name = "CSButton",
+	Size = UDim2.fromOffset(55, 55),
+	Position = UDim2.new(0, 18, 0.5, -27),
+	BackgroundColor3 = T.Panel,
+	Text = "CS",
+	TextColor3 = T.Accent,
+	TextSize = 20,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 20,
+}, GUI)
+
+corner(CSButton, 16)
+local CSStroke = outline(CSButton, T.Accent, 0.1)
+CSStroke.Thickness = 2
+
+--==================================================
+-- MAIN WINDOW
+--==================================================
+
+local Main = new("Frame", {
+	Name = "Main",
+	Size = UDim2.fromOffset(730, 485),
+	Position = UDim2.new(0.5, -365, 0.5, -242),
+	BackgroundColor3 = T.BG,
+	BorderSizePixel = 0,
+	Visible = false,
+}, GUI)
+
+corner(Main, 16)
+outline(Main, T.Accent, 0.35)
+
+local Top = new("Frame", {
+	Size = UDim2.new(1, 0, 0, 66),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+}, Main)
+
+corner(Top, 16)
+
+new("Frame", {
+	Size = UDim2.new(1, 0, 0, 18),
+	Position = UDim2.new(0, 0, 1, -18),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+}, Top)
+
+local Logo = label(
+	Top,
+	"C H E A T S L O T",
+	UDim2.fromOffset(300, 28),
+	UDim2.fromOffset(22, 9),
+	T.Accent
+)
+Logo.Font = Enum.Font.GothamBlack
+Logo.TextSize = 20
+
+label(
+	Top,
+	"VERSION 5.0  •  PREMIUM",
+	UDim2.fromOffset(280, 18),
+	UDim2.fromOffset(23, 40),
+	T.Muted
+).TextSize = 10
+
+local Close = new("TextButton", {
+	Size = UDim2.fromOffset(35, 35),
+	Position = UDim2.new(1, -49, 0, 15),
+	BackgroundColor3 = T.Element,
+	Text = "×",
+	TextColor3 = T.Text,
+	TextSize = 23,
+	Font = Enum.Font.GothamBold,
+	AutoButtonColor = false,
+}, Top)
+corner(Close, 9)
+
+local Sidebar = new("Frame", {
+	Size = UDim2.new(0, 170, 1, -83),
+	Position = UDim2.fromOffset(12, 74),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+}, Main)
+corner(Sidebar, 12)
+
+local Content = new("ScrollingFrame", {
+	Size = UDim2.new(1, -202, 1, -91),
+	Position = UDim2.fromOffset(190, 78),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 3,
+	ScrollBarImageColor3 = T.Accent,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, Main)
+
+local ContentLayout = new("UIListLayout", {
+	Padding = UDim.new(0, 9),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, Content)
+
+new("UIPadding", {
+	PaddingTop = UDim.new(0, 5),
+	PaddingBottom = UDim.new(0, 12),
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8),
+}, Content)
+
+--==================================================
+-- DRAG WINDOW
+--==================================================
+
+local function makeDraggable(frame, handle)
+	local dragging = false
+	local startPos
+	local startInput
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			startInput = input.Position
+			startPos = frame.Position
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - startInput
+
+			frame.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	UIS.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+end
+
+makeDraggable(Main, Top)
+
+--==================================================
+-- DRAG CS BUTTON
+--==================================================
+
+local csDragging = false
+local csStart
+local csPosition
+local csMoved = false
+
+CSButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		csDragging = true
+		csMoved = false
+		csStart = input.Position
+		csPosition = CSButton.Position
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if csDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - csStart
+
+		if delta.Magnitude > 5 then
+			csMoved = true
+		end
+
+		if csMoved then
+			CSButton.Position = UDim2.new(
+				csPosition.X.Scale,
+				csPosition.X.Offset + delta.X,
+				csPosition.Y.Scale,
+				csPosition.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+local function setMenu(open)
+	if open then
+		Main.Visible = true
+		Main.Size = UDim2.fromOffset(690, 455)
+		Main.BackgroundTransparency = 0.15
+
+		animate(Main, 0.22, {
+			Size = UDim2.fromOffset(730, 485),
+			BackgroundTransparency = 0,
+		})
+	else
+		animate(Main, 0.16, {
+			Size = UDim2.fromOffset(690, 455),
+			BackgroundTransparency = 0.15,
+		})
+
+		task.delay(0.17, function()
+			Main.Visible = false
+		end)
+	end
+end
+
+local function toggleMenu()
+	setMenu(not Main.Visible)
+end
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and csDragging then
+		csDragging = false
+
+		if not csMoved then
+			toggleMenu()
+		end
+	end
+end)
+
+CSButton.MouseEnter:Connect(function()
+	animate(CSButton, 0.15, {
+		BackgroundColor3 = T.Element,
+	})
+end)
+
+CSButton.MouseLeave:Connect(function()
+	animate(CSButton, 0.15, {
+		BackgroundColor3 = T.Panel,
+	})
+end)
+
+Close.MouseButton1Click:Connect(function()
+	setMenu(false)
+end)
+
+--==================================================
+-- CROSSHAIR
+--==================================================
+
+local CrosshairGui = new("Frame", {
+	Name = "CustomCrosshair",
+	Size = UDim2.fromOffset(100, 100),
+	Position = UDim2.new(0.5, -50, 0.5, -50),
+	BackgroundTransparency = 1,
+}, GUI)
+
+local function rebuildCrosshair()
+	CrosshairGui:ClearAllChildren()
+
+	local s = C.CrosshairSize
+	local t = C.CrosshairThickness
+	local g = C.CrosshairGap
+	local color = C.CrosshairColor
+	local tr = C.CrosshairTransparency
+
+	local function part(name, size, pos, rotation)
+		if C.CrosshairOutline then
+			local border = new("Frame", {
+				Name = name .. "Outline",
+				Size = UDim2.fromOffset(size.X.Offset + 2, size.Y.Offset + 2),
+				Position = pos - UDim2.fromOffset(1, 1),
+				BackgroundColor3 = Color3.new(0, 0, 0),
+				BackgroundTransparency = tr,
+				BorderSizePixel = 0,
+				Rotation = rotation or 0,
+			}, CrosshairGui)
+
+			corner(border, 5)
+		end
+
+		local line = new("Frame", {
+			Name = name,
+			Size = size,
+			Position = pos,
+			BackgroundColor3 = color,
+			BackgroundTransparency = tr,
+			BorderSizePixel = 0,
+			Rotation = rotation or 0,
+		}, CrosshairGui)
+
+		corner(line, 5)
+	end
+
+	if C.CrosshairStyle == "Classic" then
+		part("Top", UDim2.fromOffset(t, s), UDim2.fromOffset(50-t/2, 50-g-s))
+		part("Bottom", UDim2.fromOffset(t, s), UDim2.fromOffset(50-t/2, 50+g))
+		part("Left", UDim2.fromOffset(s, t), UDim2.fromOffset(50-g-s, 50-t/2))
+		part("Right", UDim2.fromOffset(s, t), UDim2.fromOffset(50+g, 50-t/2))
+
+	elseif C.CrosshairStyle == "Circle" then
+		local circle = new("Frame", {
+			Size = UDim2.fromOffset(s*2, s*2),
+			Position = UDim2.fromOffset(50-s, 50-s),
+			BackgroundTransparency = 1,
+		}, CrosshairGui)
+
+		new("UICorner", {CornerRadius = UDim.new(1, 0)}, circle)
+		new("UIStroke", {
+			Color = color,
+			Thickness = t,
+			Transparency = tr,
+		}, circle)
+
+	elseif C.CrosshairStyle == "Dot" then
+		local dot = new("Frame", {
+			Size = UDim2.fromOffset(t*2, t*2),
+			Position = UDim2.fromOffset(50-t, 50-t),
+			BackgroundColor3 = color,
+			BackgroundTransparency = tr,
+		}, CrosshairGui)
+		corner(dot, 20)
+
+	elseif C.CrosshairStyle == "Square" then
+		local square = new("Frame", {
+			Size = UDim2.fromOffset(s*2, s*2),
+			Position = UDim2.fromOffset(50-s, 50-s),
+			BackgroundTransparency = 1,
+		}, CrosshairGui)
+		outline(square, color, tr)
+
+	elseif C.CrosshairStyle == "X" then
+		part("X1", UDim2.fromOffset(s*2, t), UDim2.fromOffset(50-s, 50-t/2), 45)
+		part("X2", UDim2.fromOffset(s*2, t), UDim2.fromOffset(50-s, 50-t/2), -45)
+	end
+
+	if C.CrosshairDot and C.CrosshairStyle ~= "Dot" then
+		local dot = new("Frame", {
+			Size = UDim2.fromOffset(t, t),
+			Position = UDim2.fromOffset(50-t/2, 50-t/2),
+			BackgroundColor3 = color,
+			BackgroundTransparency = tr,
+		}, CrosshairGui)
+		corner(dot, 20)
+	end
+
+	CrosshairGui.Visible = C.Crosshair
+end
+
+rebuildCrosshair()
+
+--==================================================
+-- FOV
+--==================================================
+
+local FOV = new("Frame", {
+	Size = UDim2.fromOffset(C.AimFOV*2, C.AimFOV*2),
+	Position = UDim2.new(0.5, -C.AimFOV, 0.5, -C.AimFOV),
+	BackgroundTransparency = 1,
+	Visible = false,
+}, GUI)
+
+corner(FOV, 300)
+outline(FOV, T.Accent, 0.4)
+
+--==================================================
+-- UI COMPONENTS
+--==================================================
+
+local Tabs = {}
+
+local function clearContent()
+	for _, child in ipairs(Content:GetChildren()) do
+		if child:IsA("GuiObject") and child ~= ContentLayout then
+			child:Destroy()
+		end
+	end
+end
+
+local function section(text)
+	local l = label(Content, text:upper(), UDim2.new(1, -10, 0, 26), UDim2.new(), T.Accent)
+	l.Font = Enum.Font.GothamBold
+end
+
+local function button(text, callback)
+	local b = new("TextButton", {
+		Size = UDim2.new(1, -10, 0, 40),
+		BackgroundColor3 = T.Element,
+		Text = text,
+		TextColor3 = T.Text,
+		TextSize = 13,
+		Font = Enum.Font.GothamMedium,
+		AutoButtonColor = false,
+	}, Content)
+
+	corner(b, 9)
+
+	b.MouseEnter:Connect(function()
+		animate(b, 0.12, {BackgroundColor3 = T.Accent})
+	end)
+
+	b.MouseLeave:Connect(function()
+		animate(b, 0.12, {BackgroundColor3 = T.Element})
+	end)
+
+	b.MouseButton1Click:Connect(callback)
+	return b
+end
+
+local function toggle(text, initial, callback)
+	local enabled = initial
+
+	local b = new("TextButton", {
+		Size = UDim2.new(1, -10, 0, 42),
+		BackgroundColor3 = T.Element,
+		Text = "",
+		AutoButtonColor = false,
+	}, Content)
+	corner(b, 9)
+
+	label(b, text, UDim2.new(1, -70, 1, 0), UDim2.fromOffset(12, 0), T.Text)
+
+	local switch = new("Frame", {
+		Size = UDim2.fromOffset(39, 21),
+		Position = UDim2.new(1, -51, 0.5, -10),
+		BackgroundColor3 = enabled and T.Accent or T.Muted,
+	}, b)
+	corner(switch, 20)
+
+	local knob = new("Frame", {
+		Size = UDim2.fromOffset(15, 15),
+		Position = enabled and UDim2.fromOffset(21, 3) or UDim2.fromOffset(3, 3),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+	}, switch)
+	corner(knob, 20)
+
+	b.MouseButton1Click:Connect(function()
+		enabled = not enabled
+
+		animate(switch, 0.15, {
+			BackgroundColor3 = enabled and T.Accent or T.Muted
+		})
+
+		animate(knob, 0.15, {
+			Position = enabled and UDim2.fromOffset(21, 3) or UDim2.fromOffset(3, 3)
+		})
+
+		callback(enabled)
+	end)
+end
+
+local function slider(text, min, max, initial, callback)
+	local value = initial
+
+	local holder = new("Frame", {
+		Size = UDim2.new(1, -10, 0, 66),
+		BackgroundColor3 = T.Element,
+	}, Content)
+	corner(holder, 9)
+
+	label(holder, text, UDim2.new(1, -70, 0, 25), UDim2.fromOffset(12, 5), T.Text)
+
+	local valueLabel = label(
+		holder,
+		tostring(value),
+		UDim2.fromOffset(50, 25),
+		UDim2.new(1, -58, 0, 5),
+		T.Accent
+	)
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+	local bar = new("Frame", {
+		Size = UDim2.new(1, -24, 0, 6),
+		Position = UDim2.fromOffset(12, 45),
+		BackgroundColor3 = T.BG,
+	}, holder)
+	corner(bar, 10)
+
+	local fill = new("Frame", {
+		Size = UDim2.new((value-min)/(max-min), 0, 1, 0),
+		BackgroundColor3 = T.Accent,
+	}, bar)
+	corner(fill, 10)
+
+	local knob = new("Frame", {
+		Size = UDim2.fromOffset(13, 13),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new((value-min)/(max-min), 0, 0.5, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+	}, bar)
+	corner(knob, 20)
+
+	local active = false
+
+	local function setValue(x)
+		local p = math.clamp(
+			(x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,
+			0, 1
+		)
+
+		value = math.floor(min+(max-min)*p+0.5)
+		fill.Size = UDim2.new(p, 0, 1, 0)
+		knob.Position = UDim2.new(p, 0, 0.5, 0)
+		valueLabel.Text = tostring(value)
+		callback(value)
+	end
+
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			active = true
+			setValue(input.Position.X)
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if active and input.UserInputType == Enum.UserInputType.MouseMovement then
+			setValue(input.Position.X)
+		end
+	end)
+
+	UIS.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			active = false
+		end
+	end)
+end
+
+local function cycle(text, options, initial, callback)
+	local index = table.find(options, initial) or 1
+	local b
+
+	b = button(text .. ": " .. options[index], function()
+		index = index % #options + 1
+		b.Text = text .. ": " .. options[index]
+		callback(options[index])
+	end)
+end
+
+--==================================================
+-- ESP
+--==================================================
+
+local ESPData = {}
+
+local function removeESP(player)
+	local data = ESPData[player]
+	if not data then return end
+
+	if data.Highlight then data.Highlight:Destroy() end
+	if data.Billboard then data.Billboard:Destroy() end
+
+	ESPData[player] = nil
+end
+
+local function updateESP(player)
+	if player == LP then return end
+
+	local character = player.Character
+	if not character then
+		removeESP(player)
+		return
+	end
+
+	local head = character:FindFirstChild("Head")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not head or not humanoid or not root then return end
+
+	local data = ESPData[player] or {}
+	ESPData[player] = data
+
+	if not data.Highlight then
+		data.Highlight = new("Highlight", {
+			FillTransparency = 0.8,
+			OutlineTransparency = 0,
+			DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+		}, character)
+	end
+
+	data.Highlight.Adornee = character
+	data.Highlight.Enabled = C.ESP
+	data.Highlight.OutlineColor = T.Accent
+	data.Highlight.FillColor = Color3.fromRGB(180, 80, 255)
+
+	if not data.Billboard then
+		data.Billboard = new("BillboardGui", {
+			Size = UDim2.fromOffset(160, 65),
+			StudsOffset = Vector3.new(0, 3, 0),
+			AlwaysOnTop = true,
+			Adornee = head,
+		}, character)
+
+		data.Text = new("TextLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			TextColor3 = Color3.new(1, 1, 1),
+			TextStrokeTransparency = 0.3,
+			Font = Enum.Font.GothamBold,
+			TextSize = 12,
+		}, data.Billboard)
+	end
+
+	local lines = {}
+
+	if C.Names then table.insert(lines, player.DisplayName) end
+	if C.Health then table.insert(lines, "HP: " .. math.floor(humanoid.Health)) end
+
+	if C.Distance then
+		local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+		if myRoot then
+			table.insert(lines, math.floor((myRoot.Position-root.Position).Magnitude) .. " studs")
+		end
+	end
+
+	data.Text.Text = table.concat(lines, "\n")
+	data.Billboard.Enabled = C.ESP and #lines > 0
+end
+
+--==================================================
+-- AIM ASSIST
+--==================================================
+
+local AimHeld = false
+local LockedTarget = nil
+
+local function isFriend(player)
+	if not C.IgnoreFriends then return false end
+
+	local success, result = pcall(function()
+		return LP:IsFriendsWith(player.UserId)
+	end)
+
+	return success and result
+end
+
+local function findTarget()
+	local best = nil
+	local bestDistance = C.AimFOV
+
+	local center = Vector2.new(
+		Camera.ViewportSize.X/2,
+		Camera.ViewportSize.Y/2
+	)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LP and not isFriend(player) then
+			local character = player.Character
+			local head = character and character:FindFirstChild("Head")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+			if head and humanoid and humanoid.Health > 0 then
+				local pos, visible = Camera:WorldToViewportPoint(head.Position)
+
+				if visible and pos.Z > 0 then
+					local distance = (
+						Vector2.new(pos.X, pos.Y)-center
+					).Magnitude
+
+					if distance < bestDistance then
+						bestDistance = distance
+						best = head
+					end
+				end
+			end
+		end
+	end
+
+	return best
+end
+
+local function validTarget(part)
+	if not part or not part.Parent then return false end
+
+	local character = part:FindFirstAncestorOfClass("Model")
+	if not character then return false end
+
+	local player = Players:GetPlayerFromCharacter(character)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	return player ~= nil and player ~= LP
+		and humanoid ~= nil and humanoid.Health > 0
+end
+
+--==================================================
+-- MOVEMENT - TEST PLACE ONLY
+--==================================================
+
+local Flying = false
+local FlyConnection
+local FlyVelocity
+local FlyGyro
+
+local FlyKeys = {
+	W = false, A = false, S = false, D = false,
+	Space = false, LeftControl = false,
+}
+
+local function stopFly()
+	Flying = false
+
+	if FlyConnection then FlyConnection:Disconnect() FlyConnection = nil end
+	if FlyVelocity then FlyVelocity:Destroy() FlyVelocity = nil end
+	if FlyGyro then FlyGyro:Destroy() FlyGyro = nil end
+
+	local character = LP.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+	if humanoid then humanoid.PlatformStand = false end
+end
+
+local function startFly()
+	local character = LP.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+	if not root or not humanoid then return end
+
+	stopFly()
+	Flying = true
+	humanoid.PlatformStand = true
+
+	FlyVelocity = Instance.new("BodyVelocity")
+	FlyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+	FlyVelocity.Velocity = Vector3.zero
+	FlyVelocity.Parent = root
+
+	FlyGyro = Instance.new("BodyGyro")
+	FlyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+	FlyGyro.P = 1e5
+	FlyGyro.CFrame = Camera.CFrame
+	FlyGyro.Parent = root
+
+	FlyConnection = RunService.RenderStepped:Connect(function()
+		if not root.Parent then
+			stopFly()
+			return
+		end
+
+		local dir = Vector3.zero
+
+		if FlyKeys.W then dir += Camera.CFrame.LookVector end
+		if FlyKeys.S then dir -= Camera.CFrame.LookVector end
+		if FlyKeys.A then dir -= Camera.CFrame.RightVector end
+		if FlyKeys.D then dir += Camera.CFrame.RightVector end
+		if FlyKeys.Space then dir += Vector3.yAxis end
+		if FlyKeys.LeftControl then dir -= Vector3.yAxis end
+
+		if dir.Magnitude > 0 then dir = dir.Unit end
+
+		FlyVelocity.Velocity = dir * C.FlySpeed
+		FlyGyro.CFrame = Camera.CFrame
+	end)
+end
+
+local OriginalCollision = {}
+local NoClipConnection
+
+local function setNoClip(enabled)
+	C.NoClip = enabled
+
+	if NoClipConnection then
+		NoClipConnection:Disconnect()
+		NoClipConnection = nil
+	end
+
+	if not enabled then
+		for part, value in pairs(OriginalCollision) do
+			if part and part.Parent then part.CanCollide = value end
+		end
+
+		table.clear(OriginalCollision)
+		return
+	end
+
+	NoClipConnection = RunService.Stepped:Connect(function()
+		local character = LP.Character
+		if not character then return end
+
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				if OriginalCollision[part] == nil then
+					OriginalCollision[part] = part.CanCollide
+				end
+
+				part.CanCollide = false
+			end
+		end
+	end)
+end
+
+--==================================================
+-- TABS
+--==================================================
+
+local function setTab(name)
+	clearContent()
+
+	for tabName, b in pairs(Tabs) do
+		b.BackgroundColor3 = tabName == name and T.Accent or T.Element
+	end
+
+	if name == "Visual" then
+		section("Визуальные настройки")
+
+		toggle("ESP игроков", C.ESP, function(v)
+			C.ESP = v
+			if not v then
+				for _, data in pairs(ESPData) do
+					if data.Highlight then data.Highlight.Enabled = false end
+					if data.Billboard then data.Billboard.Enabled = false end
+				end
+			end
+		end)
+
+		toggle("Никнеймы", C.Names, function(v) C.Names = v end)
+		toggle("Здоровье", C.Health, function(v) C.Health = v end)
+		toggle("Дистанция", C.Distance, function(v) C.Distance = v end)
+
+	elseif name == "Aim" then
+		section("НАВЕДЕНИЕ")
+
+		toggle("Aim Assist", C.AimEnabled, function(v)
+			C.AimEnabled = v
+			if not v then AimHeld = false LockedTarget = nil end
+		end)
+
+		slider("Плавность", 1, 25, C.AimSmooth, function(v)
+			C.AimSmooth = v
+		end)
+
+		slider("Радиус FOV", 30, 400, C.AimFOV, function(v)
+			C.AimFOV = v
+			FOV.Size = UDim2.fromOffset(v*2, v*2)
+			FOV.Position = UDim2.new(0.5, -v, 0.5, -v)
+		end)
+
+		toggle("Игнорировать друзей", C.IgnoreFriends, function(v)
+			C.IgnoreFriends = v
+		end)
+
+		toggle("Показывать круг FOV", C.ShowFOV, function(v)
+			C.ShowFOV = v
+			FOV.Visible = v
+		end)
+
+		button("Управление: ПКМ", function()
+			C.AimKey = Enum.UserInputType.MouseButton2
+		end)
+
+		button("Управление: E", function()
+			C.AimKey = Enum.KeyCode.E
+		end)
+
+	elseif name == "Crosshair" then
+		section("СОБСТВЕННЫЙ ПРИЦЕЛ")
+
+		toggle("Включить прицел", C.Crosshair, function(v)
+			C.Crosshair = v
+			CrosshairGui.Visible = v
+		end)
+
+		cycle("Форма", {"Classic", "Circle", "Dot", "Square", "X"}, C.CrosshairStyle, function(v)
+			C.CrosshairStyle = v
+			rebuildCrosshair()
+		end)
+
+		slider("Размер", 3, 35, C.CrosshairSize, function(v)
+			C.CrosshairSize = v
+			rebuildCrosshair()
+		end)
+
+		slider("Толщина", 1, 10, C.CrosshairThickness, function(v)
+			C.CrosshairThickness = v
+			rebuildCrosshair()
+		end)
+
+		slider("Отступ", 0, 25, C.CrosshairGap, function(v)
+			C.CrosshairGap = v
+			rebuildCrosshair()
+		end)
+
+		slider("Прозрачность", 0, 100, C.CrosshairTransparency*100, function(v)
+			C.CrosshairTransparency = v/100
+			rebuildCrosshair()
+		end)
+
+		toggle("Центральная точка", C.CrosshairDot, function(v)
+			C.CrosshairDot = v
+			rebuildCrosshair()
+		end)
+
+		toggle("Контур", C.CrosshairOutline, function(v)
+			C.CrosshairOutline = v
+			rebuildCrosshair()
+		end)
+
+		local colors = {
+			{"Purple", Color3.fromRGB(190, 100, 255)},
+			{"Cyan", Color3.fromRGB(60, 220, 255)},
+			{"Red", Color3.fromRGB(255, 70, 90)},
+			{"Green", Color3.fromRGB(70, 240, 130)},
+			{"White", Color3.fromRGB(255, 255, 255)},
+			{"Pink", Color3.fromRGB(255, 100, 190)},
+			{"Yellow", Color3.fromRGB(255, 220, 70)},
+		}
+
+		local colorIndex = 1
+
+		button("Цвет: " .. colors[colorIndex][1], function()
+			colorIndex = colorIndex % #colors + 1
+			C.CrosshairColor = colors[colorIndex][2]
+			rebuildCrosshair()
+		end)
+
+		button("Сбросить прицел", function()
+			C.CrosshairStyle = "Classic"
+			C.CrosshairColor = Color3.fromRGB(190, 100, 255)
+			C.CrosshairSize = 12
+			C.CrosshairThickness = 3
+			C.CrosshairGap = 5
+			C.CrosshairDot = true
+			C.CrosshairOutline = true
+			C.CrosshairTransparency = 0
+			C.Crosshair = true
+			rebuildCrosshair()
+			setTab("Crosshair")
+		end)
+
+	elseif name == "Movement" then
+		section("ПЕРЕДВИЖЕНИЕ")
+
+		toggle("Fly", C.Fly, function(v)
+			C.Fly = v
+			if v then startFly() else stopFly() end
+		end)
+
+		slider("Скорость Fly", 10, 150, C.FlySpeed, function(v)
+			C.FlySpeed = v
+		end)
+
+		toggle("NoClip", C.NoClip, function(v)
+			setNoClip(v)
+		end)
+
+		label(
+			Content,
+			"WASD — движение\nSpace — вверх\nLeftCtrl — вниз\n\nТестовые механики для собственной игры.",
+			UDim2.new(1, -10, 0, 95),
+			UDim2.new(),
+			T.Muted
+		).TextWrapped = true
+
+	elseif name == "Players" then
+		section("ИГРОКИ")
+
+		local search = new("TextBox", {
+			Size = UDim2.new(1, -10, 0, 40),
+			BackgroundColor3 = T.Element,
+			PlaceholderText = "Поиск игрока...",
+			Text = "",
+			TextColor3 = T.Text,
+			PlaceholderColor3 = T.Muted,
+			Font = Enum.Font.Gotham,
+			TextSize = 13,
+			ClearTextOnFocus = false,
+		}, Content)
+		corner(search, 9)
+
+		local list = new("Frame", {
+			Size = UDim2.new(1, -10, 0, 0),
+			BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.Y,
+		}, Content)
+
+		new("UIListLayout", {
+			Padding = UDim.new(0, 6),
+		}, list)
+
+		local function refresh()
+			for _, child in ipairs(list:GetChildren()) do
+				if child:IsA("GuiObject") then child:Destroy() end
+			end
+
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player ~= LP and (
+					search.Text == ""
+						or string.find(string.lower(player.Name), string.lower(search.Text), 1, true)
+					) then
+					local row = new("Frame", {
+						Size = UDim2.new(1, 0, 0, 38),
+						BackgroundColor3 = T.Element,
+					}, list)
+					corner(row, 8)
+
+					label(
+						row,
+						player.DisplayName .. "  @" .. player.Name,
+						UDim2.new(1, -12, 1, 0),
+						UDim2.fromOffset(10, 0),
+						T.Text
+					)
+				end
+			end
+		end
+
+		search:GetPropertyChangedSignal("Text"):Connect(refresh)
+		refresh()
+
+	elseif name == "Settings" then
+		section("ТЕМЫ")
+
+		cycle("Тема", {"Purple", "Dark", "Red", "Green", "Light"}, C.Theme, function(v)
+			C.Theme = v
+			T = Themes[v]
+
+			Main.BackgroundColor3 = T.BG
+			Top.BackgroundColor3 = T.Panel
+			Sidebar.BackgroundColor3 = T.Panel
+			CSButton.BackgroundColor3 = T.Panel
+			CSButton.TextColor3 = T.Accent
+			Logo.TextColor3 = T.Accent
+			Content.ScrollBarImageColor3 = T.Accent
+			FOV:FindFirstChildOfClass("UIStroke").Color = T.Accent
+			rebuildCrosshair()
+		end)
+
+		section("УПРАВЛЕНИЕ")
+
+		button("Кнопка открытия: F8", function()
+			C.MenuKey = Enum.KeyCode.F8
+		end)
+
+		button("Сбросить положение меню", function()
+			Main.Position = UDim2.new(0.5, -365, 0.5, -242)
+		end)
+
+		button("Скрыть меню", function()
+			setMenu(false)
+		end)
+
+	elseif name == "Info" then
+		section("ИНФОРМАЦИЯ")
+
+		local title = label(
+			Content,
+			"CheatSLOT v5.0",
+			UDim2.new(1, -10, 0, 40),
+			UDim2.new(),
+			T.Accent
+		)
+		title.TextSize = 22
+		title.Font = Enum.Font.GothamBlack
+
+		label(
+			Content,
+			"Authors:\nFaze4ik\nZENQ\nAlmazik\n\nCustom interface for Roblox Studio.",
+			UDim2.new(1, -10, 0, 150),
+			UDim2.new(),
+			T.Text
+		).TextWrapped = true
+	end
+end
+
+--==================================================
+-- SIDEBAR TABS
+--==================================================
+
+local tabData = {
+	{"Visual", "◈  Visual"},
+	{"Aim", "◎  Aim"},
+	{"Crosshair", "✛  Crosshair"},
+	{"Movement", "↗  Movement"},
+	{"Players", "♙  Players"},
+	{"Settings", "⚙  Settings"},
+	{"Info", "ⓘ  Info"},
+}
+
+for i, tab in ipairs(tabData) do
+	local b = new("TextButton", {
+		Size = UDim2.new(1, -14, 0, 42),
+		Position = UDim2.fromOffset(7, 10+(i-1)*48),
+		BackgroundColor3 = T.Element,
+		Text = tab[2],
+		TextColor3 = T.Text,
+		TextSize = 13,
+		Font = Enum.Font.GothamMedium,
+		AutoButtonColor = false,
+	}, Sidebar)
+
+	corner(b, 8)
+	Tabs[tab[1]] = b
+
+	b.MouseButton1Click:Connect(function()
+		setTab(tab[1])
+	end)
+end
+
+setTab("Visual")
+
+--==================================================
+-- INPUT
+--==================================================
+
+local function matchesAim(input)
+	if C.AimKey == Enum.UserInputType.MouseButton2 then
+		return input.UserInputType == Enum.UserInputType.MouseButton2
+	end
+
+	return input.KeyCode == C.AimKey
+end
+
+UIS.InputBegan:Connect(function(input, processed)
+	if input.KeyCode == C.MenuKey then
+		toggleMenu()
+		return
+	end
+
+	if processed then return end
+
+	if matchesAim(input) and C.AimEnabled then
+		AimHeld = true
+		LockedTarget = findTarget()
+	end
+
+	if input.KeyCode == Enum.KeyCode.W then FlyKeys.W = true end
+	if input.KeyCode == Enum.KeyCode.A then FlyKeys.A = true end
+	if input.KeyCode == Enum.KeyCode.S then FlyKeys.S = true end
+	if input.KeyCode == Enum.KeyCode.D then FlyKeys.D = true end
+	if input.KeyCode == Enum.KeyCode.Space then FlyKeys.Space = true end
+	if input.KeyCode == Enum.KeyCode.LeftControl then FlyKeys.LeftControl = true end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if matchesAim(input) then
+		AimHeld = false
+		LockedTarget = nil
+	end
+
+	if input.KeyCode == Enum.KeyCode.W then FlyKeys.W = false end
+	if input.KeyCode == Enum.KeyCode.A then FlyKeys.A = false end
+	if input.KeyCode == Enum.KeyCode.S then FlyKeys.S = false end
+	if input.KeyCode == Enum.KeyCode.D then FlyKeys.D = false end
+	if input.KeyCode == Enum.KeyCode.Space then FlyKeys.Space = false end
+	if input.KeyCode == Enum.KeyCode.LeftControl then FlyKeys.LeftControl = false end
+end)
+
+--==================================================
+-- UPDATE
+--==================================================
+
+RunService.RenderStepped:Connect(function(dt)
+	Camera = workspace.CurrentCamera
+
+	CrosshairGui.Visible = C.Crosshair
+	FOV.Visible = C.ShowFOV
+
+	if C.ESP then
+		for _, player in ipairs(Players:GetPlayers()) do
+			updateESP(player)
+		end
+	end
+
+	if AimHeld and C.AimEnabled and not Main.Visible then
+		if validTarget(LockedTarget) then
+			local targetCFrame = CFrame.lookAt(
+				Camera.CFrame.Position,
+				LockedTarget.Position
+			)
+
+			local alpha = 1-math.exp(-C.AimSmooth*dt)
+
+			Camera.CFrame = Camera.CFrame:Lerp(
+				targetCFrame,
+				math.clamp(alpha, 0, 1)
+			)
+		else
+			AimHeld = false
+			LockedTarget = nil
+		end
+	end
+end)
+
+--==================================================
+-- CLEANUP
+--==================================================
+
+Players.PlayerRemoving:Connect(function(player)
+	removeESP(player)
+
+	if LockedTarget and player.Character
+		and LockedTarget:IsDescendantOf(player.Character) then
+		LockedTarget = nil
+		AimHeld = false
+	end
+end)
+
+LP.CharacterAdded:Connect(function()
+	stopFly()
+
+	if C.NoClip then
+		setNoClip(false)
+	end
+
+	table.clear(OriginalCollision)
+end)
